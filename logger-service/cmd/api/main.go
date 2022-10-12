@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
-	"log-service/cmd/api/data"
+	"log-service/data"
 	"net"
 	"net/http"
 	"net/rpc"
 	"time"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 const (
@@ -32,7 +33,6 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
-
 	client = mongoClient
 
 	// create a context in order to disconnect
@@ -46,14 +46,14 @@ func main() {
 		}
 	}()
 
-	app := Config{Models: data.New(mongoClient)}
+	app := Config{
+		Models: data.New(client),
+	}
 
-	// Register the RPC Server
-	err = rpc.Register(new(RPCServer))
 	go app.rpcListen()
 
-	go app.gRPCListen()
-
+	// start web server
+	log.Println("Starting service on port", webPort)
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", webPort),
 		Handler: app.routes(),
@@ -61,8 +61,9 @@ func main() {
 
 	err = srv.ListenAndServe()
 	if err != nil {
-		log.Panic(err)
+		log.Panic()
 	}
+
 }
 
 func (app *Config) rpcListen() error {
@@ -78,9 +79,9 @@ func (app *Config) rpcListen() error {
 		if err != nil {
 			continue
 		}
-
 		go rpc.ServeConn(rpcConn)
 	}
+
 }
 
 func connectToMongo() (*mongo.Client, error) {
@@ -94,8 +95,11 @@ func connectToMongo() (*mongo.Client, error) {
 	// connect
 	c, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
-		log.Println("error connecting: ", err)
+		log.Println("Error connecting:", err)
 		return nil, err
 	}
+
+	log.Println("Connected to mongo!")
+
 	return c, nil
 }

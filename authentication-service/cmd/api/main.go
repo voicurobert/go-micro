@@ -26,9 +26,10 @@ type Config struct {
 func main() {
 	log.Println("Starting authentication service")
 
+	// connect to DB
 	conn := connectToDB()
 	if conn == nil {
-		log.Panic("can't connect to postgres")
+		log.Panic("Can't connect to Postgres!")
 	}
 
 	// set up config
@@ -58,6 +59,7 @@ func openDB(dsn string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return db, nil
 }
 
@@ -67,10 +69,10 @@ func connectToDB() *sql.DB {
 	for {
 		connection, err := openDB(dsn)
 		if err != nil {
-			log.Println("Postgres not yet ready...")
+			log.Println("Postgres not yet ready ...")
 			counts++
 		} else {
-			log.Println("Connected to Postgres")
+			log.Println("Connected to Postgres!")
 			return connection
 		}
 
@@ -79,7 +81,8 @@ func connectToDB() *sql.DB {
 			return nil
 		}
 
-		log.Println("Backing off for 2 seconds...")
+		log.Println("Backing off for two seconds....")
 		time.Sleep(2 * time.Second)
+		continue
 	}
 }

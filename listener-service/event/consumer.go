@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
 	"net/http"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type Consumer struct {
@@ -15,7 +16,9 @@ type Consumer struct {
 }
 
 func NewConsumer(conn *amqp.Connection) (Consumer, error) {
-	consumer := Consumer{conn: conn}
+	consumer := Consumer{
+		conn: conn,
+	}
 
 	err := consumer.setup()
 	if err != nil {
@@ -25,8 +28,8 @@ func NewConsumer(conn *amqp.Connection) (Consumer, error) {
 	return consumer, nil
 }
 
-func (c *Consumer) setup() error {
-	channel, err := c.conn.Channel()
+func (consumer *Consumer) setup() error {
+	channel, err := consumer.conn.Channel()
 	if err != nil {
 		return err
 	}
@@ -39,8 +42,8 @@ type Payload struct {
 	Data string `json:"data"`
 }
 
-func (c *Consumer) Listen(topics []string) error {
-	ch, err := c.conn.Channel()
+func (consumer *Consumer) Listen(topics []string) error {
+	ch, err := consumer.conn.Channel()
 	if err != nil {
 		return err
 	}
@@ -52,7 +55,14 @@ func (c *Consumer) Listen(topics []string) error {
 	}
 
 	for _, s := range topics {
-		err := ch.QueueBind(q.Name, s, "logs_topic", false, nil)
+		ch.QueueBind(
+			q.Name,
+			s,
+			"logs_topic",
+			false,
+			nil,
+		)
+
 		if err != nil {
 			return err
 		}
@@ -74,19 +84,25 @@ func (c *Consumer) Listen(topics []string) error {
 	}()
 
 	fmt.Printf("Waiting for message [Exchange, Queue] [logs_topic, %s]\n", q.Name)
-
 	<-forever
+
 	return nil
 }
 
 func handlePayload(payload Payload) {
 	switch payload.Name {
 	case "log", "event":
+		// log whatever we get
 		err := logEvent(payload)
 		if err != nil {
 			log.Println(err)
 		}
+
 	case "auth":
+		// authenticate
+
+	// you can have as many cases as you want, as long as you write the logic
+
 	default:
 		err := logEvent(payload)
 		if err != nil {
@@ -106,6 +122,7 @@ func logEvent(entry Payload) error {
 	}
 
 	request.Header.Set("Content-Type", "application/json")
+
 	client := &http.Client{}
 
 	response, err := client.Do(request)
@@ -117,5 +134,6 @@ func logEvent(entry Payload) error {
 	if response.StatusCode != http.StatusAccepted {
 		return err
 	}
+
 	return nil
 }
